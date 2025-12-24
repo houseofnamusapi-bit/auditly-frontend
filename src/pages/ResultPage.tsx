@@ -13,7 +13,28 @@ export default function ResultsPage() {
 
   const { result, url } = state;
 
-  // ✅ FIXED SEO SCORE (no screenshots)
+  // ✅ CLEANUP API CALL
+  const cleanupAudit = async () => {
+    if (!result?.auditId) return;
+
+    try {
+      await fetch("/api/audit/cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auditId: result.auditId }),
+      });
+    } catch (err) {
+      console.error("Cleanup failed", err);
+    }
+  };
+
+  // ✅ BACK BUTTON (WITH CLEANUP)
+  const goBack = async () => {
+    await cleanupAudit();
+    navigate("/");
+  };
+
+  // ✅ FIXED SEO SCORE
   const calculateSeoScore = () => {
     let score = 0;
     if (result?.seo?.title) score += 25;
@@ -32,7 +53,7 @@ export default function ResultsPage() {
   if (!result?.seo?.headings?.h1?.length) issues.push("No H1 heading found");
   if (result?.loadTimeMs > 3000) issues.push("Page load time is slow");
 
-  // ✅ TEXT-ONLY PDF (VERY SMALL SIZE)
+  // ✅ TEXT-ONLY PDF (NO IMAGES)
   const downloadPdf = () => {
     const pdf = new jsPDF("p", "mm", "a4");
     let y = 20;
@@ -66,7 +87,6 @@ export default function ResultsPage() {
 
     if (issues.length === 0) {
       pdf.text("No major SEO issues found 🎉", 20, y);
-      y += 8;
     } else {
       issues.forEach((issue) => {
         if (y > 270) {
@@ -91,22 +111,22 @@ export default function ResultsPage() {
 
   return (
     <div className="results-page">
-      {/* UI Header */}
+      {/* HEADER */}
       <div className="results-header">
-        <button className="back-btn" onClick={() => navigate("/")}>
+        <button className="back-btn" onClick={goBack}>
           ← New Audit
         </button>
         <span style={{ opacity: 0.6 }}>Powered by houseofnamus.com</span>
       </div>
 
-      {/* Actions */}
+      {/* ACTIONS */}
       <div className="actions">
         <button className="download-btn" onClick={downloadPdf}>
           📄 Download PDF
         </button>
       </div>
 
-      {/* UI CONTENT (NOT USED FOR PDF) */}
+      {/* CONTENT */}
       <div className="results-container">
         <div className="audit-card">
           <h2>Audit Results</h2>
@@ -126,37 +146,38 @@ export default function ResultsPage() {
             </ul>
           )}
         </div>
+
+        {/* ✅ UI-ONLY SCREENSHOTS */}
+        {result?.screenshots && (
+          <div className="audit-card">
+            <h3>Screenshots</h3>
+
+            <div className="screenshots">
+              {result.screenshots.desktop && (
+                <div>
+                  <p style={{ opacity: 0.6, marginBottom: 8 }}>Desktop</p>
+                  <img
+                    src={`http://localhost:5000/screenshots/${result.screenshots.desktop}`}
+                    alt="Desktop Screenshot"
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </div>
+              )}
+
+              {result.screenshots.mobile && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ opacity: 0.6, marginBottom: 8 }}>Mobile</p>
+                  <img
+                    src={`http://localhost:5000/screenshots/${result.screenshots.mobile}`}
+                    alt="Mobile Screenshot"
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      {result?.screenshots && (
-  <div className="audit-card">
-    <h3>Screenshots</h3>
-
-    <div className="screenshots">
-      {result.screenshots.desktop && (
-        <div>
-          <p style={{ opacity: 0.6, marginBottom: 8 }}>Desktop</p>
-          <img
-            src={`http://localhost:5000/screenshots/${result.screenshots.desktop}`}
-            alt="Desktop Screenshot"
-            style={{ width: "100%", borderRadius: 8 }}
-          />
-        </div>
-      )}
-
-      {result.screenshots.mobile && (
-        <div style={{ marginTop: 16 }}>
-          <p style={{ opacity: 0.6, marginBottom: 8 }}>Mobile</p>
-          <img
-            src={`http://localhost:5000/screenshots/${result.screenshots.mobile}`}
-            alt="Mobile Screenshot"
-            style={{ width: "100%", borderRadius: 8 }}
-          />
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
     </div>
   );
 }

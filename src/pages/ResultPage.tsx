@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import "./ResultsPage.css";
 
 export default function ResultsPage() {
@@ -14,13 +13,13 @@ export default function ResultsPage() {
 
   const { result, url } = state;
 
+  // ✅ FIXED SEO SCORE (no screenshots)
   const calculateSeoScore = () => {
     let score = 0;
-    if (result?.seo?.title) score += 20;
-    if (result?.seo?.metaDescription) score += 20;
-    if (result?.seo?.headings?.h1?.length > 0) score += 20;
-    if (result?.loadTimeMs < 3000) score += 20;
-    if (result?.screenshots?.mobile) score += 20;
+    if (result?.seo?.title) score += 25;
+    if (result?.seo?.metaDescription) score += 25;
+    if (result?.seo?.headings?.h1?.length > 0) score += 25;
+    if (result?.loadTimeMs < 3000) score += 25;
     return score;
   };
 
@@ -33,28 +32,66 @@ export default function ResultsPage() {
   if (!result?.seo?.headings?.h1?.length) issues.push("No H1 heading found");
   if (result?.loadTimeMs > 3000) issues.push("Page load time is slow");
 
-  const downloadPdf = async () => {
-    const el = document.getElementById("audit-report");
-    if (!el) return;
-
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: "#0a0b1c",
-    });
-
-    const img = canvas.toDataURL("image/png");
+  // ✅ TEXT-ONLY PDF (VERY SMALL SIZE)
+  const downloadPdf = () => {
     const pdf = new jsPDF("p", "mm", "a4");
+    let y = 20;
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = (canvas.height * pageWidth) / canvas.width;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(18);
+    pdf.text("Website Audit Report", 20, y);
 
-    pdf.addImage(img, "PNG", 0, 0, pageWidth, pageHeight);
+    y += 10;
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`URL: ${url}`, 20, y);
+
+    y += 8;
+    pdf.text(`Generated on: ${new Date().toLocaleString()}`, 20, y);
+
+    y += 15;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("SEO Score", 20, y);
+
+    y += 8;
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`${score} / 100`, 20, y);
+
+    y += 15;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("SEO Issues", 20, y);
+
+    y += 8;
+    pdf.setFont("helvetica", "normal");
+
+    if (issues.length === 0) {
+      pdf.text("No major SEO issues found 🎉", 20, y);
+      y += 8;
+    } else {
+      issues.forEach((issue) => {
+        if (y > 270) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(`- ${issue}`, 20, y);
+        y += 8;
+      });
+    }
+
+    y += 10;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Performance", 20, y);
+
+    y += 8;
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Load Time: ${result.loadTimeMs} ms`, 20, y);
+
     pdf.save("auditly-report.pdf");
   };
 
   return (
     <div className="results-page">
-      {/* UI Header (not part of PDF) */}
+      {/* UI Header */}
       <div className="results-header">
         <button className="back-btn" onClick={() => navigate("/")}>
           ← New Audit
@@ -69,15 +106,12 @@ export default function ResultsPage() {
         </button>
       </div>
 
-      {/* PDF CONTENT START */}
-      <div className="results-container" id="audit-report">
+      {/* UI CONTENT (NOT USED FOR PDF) */}
+      <div className="results-container">
         <div className="audit-card">
           <h2>Audit Results</h2>
           <p style={{ opacity: 0.7 }}>{url}</p>
-
-          <div className={`score ${scoreClass}`}>
-            {score} / 100
-          </div>
+          <div className={`score ${scoreClass}`}>{score} / 100</div>
         </div>
 
         <div className="audit-card">
@@ -92,32 +126,37 @@ export default function ResultsPage() {
             </ul>
           )}
         </div>
-
-        {result?.screenshots && (
-          <div className="audit-card">
-            <h3>Screenshots</h3>
-
-            <div className="screenshots">
-              <div>
-                <p style={{ opacity: 0.6, marginBottom: 8 }}>Desktop</p>
-                <img
-                  src={`http://localhost:5000/screenshots/${result.screenshots.desktop}`}
-                  alt="Desktop Screenshot"
-                />
-              </div>
-
-              <div>
-                <p style={{ opacity: 0.6, marginBottom: 8 }}>Mobile</p>
-                <img
-                  src={`http://localhost:5000/screenshots/${result.screenshots.mobile}`}
-                  alt="Mobile Screenshot"
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-      {/* PDF CONTENT END */}
+      {result?.screenshots && (
+  <div className="audit-card">
+    <h3>Screenshots</h3>
+
+    <div className="screenshots">
+      {result.screenshots.desktop && (
+        <div>
+          <p style={{ opacity: 0.6, marginBottom: 8 }}>Desktop</p>
+          <img
+            src={`http://localhost:5000/screenshots/${result.screenshots.desktop}`}
+            alt="Desktop Screenshot"
+            style={{ width: "100%", borderRadius: 8 }}
+          />
+        </div>
+      )}
+
+      {result.screenshots.mobile && (
+        <div style={{ marginTop: 16 }}>
+          <p style={{ opacity: 0.6, marginBottom: 8 }}>Mobile</p>
+          <img
+            src={`http://localhost:5000/screenshots/${result.screenshots.mobile}`}
+            alt="Mobile Screenshot"
+            style={{ width: "100%", borderRadius: 8 }}
+          />
+        </div>
+      )}
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
